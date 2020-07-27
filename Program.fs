@@ -43,10 +43,11 @@ let rec sumvec (list:Vector<double> list) =
     | [_] -> List.head list
     | head :: tail -> List.head list + sumvec (List.tail list)
 
-//格子基底行列aに対し、第一因子:直交行列　第二因子:GSO係数行列を返す 
+//格子基底行列aに対し、第0要素:GSOベクトル行列　第1要素:GSO係数行列を返す 
 let gso (a:Matrix<double>) =
     let n = a.ColumnCount in
         let ai i = a.Column(i) in
+        //グラムシュミット分解を二重再帰的に記述
         let rec m i j = if i>j then 0. elif i = j then 1. else ((ai j).DotProduct((bi i)))/ ((bi i).DotProduct((bi i)))
             and bi i = if i = 0 then ai 0 else ((ai i) - sumvec [for j in 0 .. i-1 -> (m j i)*(bi j)]) in
     let b0 = [for i in 0 .. n-1 -> (bi i)] in
@@ -85,9 +86,9 @@ let sizereduce (a:Matrix<double>) =
     let n = a.ColumnCount
     let c = snd(gso a)
     let rec hojo (a0,c0) i j =
-        if j=n-1 && i=0 then (subsizereduce a0 c0 i j)
-        elif i=0 then hojo (subsizereduce a0 c0 i j) j (j+1)
-        else hojo (subsizereduce a0 c0 i j) (i-1) j
+        if j = n-1 && i=0 then (subsizereduce a0 c0 i j)
+        elif i = 0 then hojo (subsizereduce a0 c0 i j) j (j+1)
+        else hojo (subsizereduce a0 c0 i j)(i-1) j
     in
     hojo (a,c) 0 1
 
@@ -104,25 +105,26 @@ let squarenormvector (a:Matrix<double>) =
 let gsoupdate (c:Matrix<double>) blist k =
     let n = c.ColumnCount in
     let ck_1k = c.[k-1,k] in
-    let bk_1=fst(k_1andkth blist k) in
+    let bk_1 = fst(k_1andkth blist k) in
     let bk = snd(k_1andkth blist k) in
-    let ck_1=(ck_1k**2.)*bk_1+bk in
+    let ck_1 = (ck_1k**2.)*bk_1+bk in
     let ck = bk_1*bk/ck_1 in
     let rec updateb b i =
-        if i=n then []
-        elif i=k-1 then
+        if i = n then []
+        elif i = k-1 then
             ck_1::ck::List.tail (List.tail b)
         else (List.head b)::(updateb (List.tail b) (i+1))
     in
     let newb = updateb blist 0 in
+    //新たなGSO係数行列の要素を記述
     let nu i j = 
-        if i=j then 1.
-        elif i>j then 0.
-        elif i=k-1&&j=k then c.[k-1,k]*bk_1/ck_1
-        elif j=k-1 then c.[i,k]
-        elif j=k then c.[i,k-1]
-        elif i=k-1 then (c.[k,j]*bk+c.[k-1,k]*c.[k-1,j]*bk_1)/ck_1
-        elif i=k then c.[k-1,j]-c.[k-1,k]*c.[k,j]
+        if i = j then 1.
+        elif i > j then 0.
+        elif i = k-1 && j = k then c.[k-1,k]*bk_1/ck_1
+        elif j = k-1 then c.[i,k]
+        elif j = k then c.[i,k-1]
+        elif i = k-1 then (c.[k,j]*bk+c.[k-1,k]*c.[k-1,j]*bk_1)/ck_1
+        elif i = k then c.[k-1,j]-c.[k-1,k]*c.[k,j]
         else c.[i,j]
     in
     let newc = DenseMatrix.init n n (fun i j -> nu i j) in
@@ -137,7 +139,7 @@ let lll_reduce (a:Matrix<double>) d =
     let c = snd(gso a) in
     let kth_reduce a c k =
         let rec kth_hojo (a,c) j k =
-            if j=0 then subsizereduce a c j k
+            if j = 0 then subsizereduce a c j k
             else kth_hojo (subsizereduce a c j k) (j-1) k
         in
         kth_hojo (a,c) (k-1) k
@@ -145,18 +147,21 @@ let lll_reduce (a:Matrix<double>) d =
     let rec lll_hojo (a,c) blist k =
         let c0= snd(kth_reduce a c k) in
         let mu2 = c0.[k-1,k]**2.0 in
-        let bk_1=fst(k_1andkth blist k) in
+        let bk_1 = fst(k_1andkth blist k) in
         let bk = snd(k_1andkth blist k) in
+        //Lovasz条件のチェック、満たすならk+1列へ、満たさないならk列とk-1列を入れ替えてk-1列へ
         if bk >= (d-mu2)*bk_1 then 
-            if k=n-1 then (a,c)
+            if k = n-1 then (a,c)
             else lll_hojo(kth_reduce a c (k+1)) blist (k+1)
         else 
             let updated = gsoupdate c blist k in
-            lll_hojo (kth_reduce (DenseMatrix.ofColumnSeq[for i in 0 .. (n-1) -> if i=(k-1) then a.Column(k) elif i=k then a.Column(k-1) else a.Column(i)]) (snd(updated)) (max 1 (k-1))) (fst(updated))  (max 1 (k-1))
+            //aのk-1列とk列の入れ替え
+            let newa = DenseMatrix.ofColumnSeq[for i in 0 .. (n-1) -> if i=(k-1) then a.Column(k) elif i=k then a.Column(k-1) else a.Column(i)] in
+            lll_hojo (kth_reduce newa (snd(updated))(max 1 (k-1)))(fst(updated))(max 1 (k-1))
     in
     lll_hojo (a,c) (squarenormvector b) 1
 
-
+//test用の行列
 let a1 = matrix [[-2.;3.;2.;8.]
                  [7.;-2.;-8.;-9.]
                  [7.;6.;-9.;6.]
@@ -164,7 +169,7 @@ let a1 = matrix [[-2.;3.;2.;8.]
 
 
 [<EntryPoint>]
-// test,格子基底行列a1と簡約パラメータ0.99を代入
+// test,lll_reduceに格子基底行列a1と簡約パラメータ0.99を代入
 let main args =
     printfn "%A" (lll_reduce a1 0.99)
     0
