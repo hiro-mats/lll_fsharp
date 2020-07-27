@@ -1,2 +1,2 @@
 # lll_fsharp
-lll algorithm written of f#
+LLL algorithm written by f#
