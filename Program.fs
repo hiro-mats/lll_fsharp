@@ -9,12 +9,17 @@
 今回はその中でもLLL簡約と呼ばれているアルゴリズムを実装することを目標とする。
 *)
 
+(*
+以下ではグラムシュミット分解 A=BC,Bは直交行列,Cは上三角行列に対し
+BをGSOベクトル行列,CをGSO係数行列と呼ぶ。
+*)
+
 open MathNet.Numerics.LinearAlgebra
 
 // リストの頭から項数がk個のリストを取る(0番目からk-1番目までを返す) 
 let head_k_list (list:'a list) k =list.[..(k-1)]
 
-// listのi番目からk-1番目までのk-i項からなるリストを返す 
+// リストのi番目からk-1番目までのk-i項からなるリストを返す 
 let itok_list (list:'a list) i k =list.[i..(k-1)]
 
 // リストのk-1番目とk番目の対を返す 
@@ -73,7 +78,7 @@ let subsizereduce (a:Matrix<double>) (c:Matrix<double>) i j =
         (DenseMatrix.ofColumnSeq a0,DenseMatrix.ofColumnSeq c0)
     else (a,c)
 
-//格子基底行列aとそのgso係数行列cに対し
+//格子基底行列aとそのGSO係数行列cに対し
 //aのなす格子を保ったままGSO基底行列の各要素の絶対値が1/2以下となる格子基底行列a'と
 //そのGSO係数行列c'を返す
 let sizereduce (a:Matrix<double>) =
@@ -94,8 +99,8 @@ let squarenormvector (a:Matrix<double>) =
     in
     hojo a
 
-//格子行列のgso係数行列cとgsoベクトルの二乗リストblistと整数kに対し
-//格子行列のk-1列目とk列目を入れ替えたときのgso係数行列とgsoベクトルの二乗リストを返す
+//格子行列のGSO係数行列cとGSOベクトルの二乗リストblistと整数kに対し
+//格子行列のk-1列目とk列目を入れ替えたときのGSO係数行列とGSOベクトルの二乗リストを返す
 let gsoupdate (c:Matrix<double>) blist k =
     let n = c.ColumnCount in
     let ck_1k = c.[k-1,k] in
